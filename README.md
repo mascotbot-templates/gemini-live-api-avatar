@@ -1,4 +1,4 @@
-# Gemini Live API Avatar
+# Gemini Live API Avatar Demo
 
 > Real-time animated avatar with Gemini Live API and Mascot Bot SDK lip sync.
 
