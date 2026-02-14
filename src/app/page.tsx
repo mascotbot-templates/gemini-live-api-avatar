@@ -19,7 +19,9 @@ interface LiveAPISession {
 function GeminiLiveAPIContent() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const isVideoEnabledRef = useRef(true);
   const [isMobile, setIsMobile] = useState(false);
 
   // Session state for tracking connection status
@@ -154,7 +156,7 @@ function GeminiLiveAPIContent() {
     processorRef.current = processor;
 
     processor.onaudioprocess = (e) => {
-      if (!liveSessionRef.current || isMuted) return;
+      if (!liveSessionRef.current || isMutedRef.current) return;
 
       const inputData = e.inputBuffer.getChannelData(0);
       const pcmData = new Int16Array(inputData.length);
@@ -182,7 +184,7 @@ function GeminiLiveAPIContent() {
     if (canvas && video) {
       const ctx = canvas.getContext("2d");
       videoIntervalRef.current = setInterval(() => {
-        if (!liveSessionRef.current || !ctx || !isVideoEnabled) return;
+        if (!liveSessionRef.current || !ctx || !isVideoEnabledRef.current) return;
         if (video.readyState < video.HAVE_CURRENT_DATA) return;
 
         canvas.width = 768;
@@ -321,19 +323,24 @@ function GeminiLiveAPIContent() {
 
   // Toggle mute
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
+    setIsMuted((prev) => {
+      const next = !prev;
+      isMutedRef.current = next;
+      return next;
+    });
   }, []);
 
   // Toggle video
   const toggleVideo = useCallback(() => {
     setIsVideoEnabled((prev) => {
-      const newState = !prev;
+      const next = !prev;
+      isVideoEnabledRef.current = next;
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getVideoTracks().forEach((track) => {
-          track.enabled = newState;
+          track.enabled = next;
         });
       }
-      return newState;
+      return next;
     });
   }, []);
 
