@@ -37,6 +37,14 @@ function GeminiLiveAPIContent() {
   const urlRefreshInterval = useRef<NodeJS.Timeout | null>(null);
   const connectionStartTime = useRef<number | null>(null);
 
+  // Pending config fetch promise — deduplicates concurrent fetches
+  const pendingConfigFetch = useRef<Promise<{
+    baseUrl: string;
+    ephemeralToken: string;
+    model: string;
+    initialMessage: string;
+  } | null> | null>(null);
+
   // Audio context and stream for microphone input
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -98,15 +106,28 @@ function GeminiLiveAPIContent() {
     return response.json();
   };
 
-  // Fetch and cache signed URL config
+  // Fetch and cache signed URL config — deduplicates concurrent calls
   const fetchAndCacheConfig = useCallback(async () => {
-    try {
-      const config = await getSignedUrlConfig();
-      setCachedConfig(config);
-    } catch (error) {
-      console.error("Failed to fetch signed URL config:", error);
-      setCachedConfig(null);
+    if (pendingConfigFetch.current) {
+      return pendingConfigFetch.current;
     }
+
+    const fetchPromise = (async () => {
+      try {
+        const config = await getSignedUrlConfig();
+        setCachedConfig(config);
+        return config;
+      } catch (error) {
+        console.error("Failed to fetch signed URL config:", error);
+        setCachedConfig(null);
+        return null;
+      } finally {
+        pendingConfigFetch.current = null;
+      }
+    })();
+
+    pendingConfigFetch.current = fetchPromise;
+    return fetchPromise;
   }, []);
 
   // Pre-fetch token on mount + refresh every 9 minutes
@@ -217,10 +238,10 @@ function GeminiLiveAPIContent() {
         videoRef.current.srcObject = stream;
       }
 
-      // Use cached config if available, otherwise fetch fresh
+      // Use cached config if available, otherwise fetch (deduplicates concurrent calls)
       let config = cachedConfig;
       if (!config) {
-        config = await getSignedUrlConfig();
+        config = await fetchAndCacheConfig();
       }
 
       if (!config?.baseUrl || !config?.ephemeralToken) {
@@ -285,6 +306,8 @@ function GeminiLiveAPIContent() {
       setIsConnecting(false);
       setSessionStatus("disconnected");
       connectionStartTime.current = null;
+      // Pre-fetch a fresh config for the next attempt
+      fetchAndCacheConfig();
     }
   }, [cachedConfig, fetchAndCacheConfig]);
 
