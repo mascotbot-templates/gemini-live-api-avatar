@@ -148,7 +148,7 @@ function GeminiLiveAPIContent() {
   }, [fetchAndCacheConfig]);
 
   // Set up audio + video input processing
-  const setupMediaInput = (liveSession: Session, stream: MediaStream) => {
+  const setupMediaInput = (_liveSession: Session, stream: MediaStream) => {
     // --- Audio setup (Gemini expects 16kHz PCM16) ---
     audioContextRef.current = new AudioContext({ sampleRate: 16000 });
     const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -170,7 +170,7 @@ function GeminiLiveAPIContent() {
         String.fromCharCode.apply(null, Array.from(uint8Array))
       );
 
-      liveSession.sendRealtimeInput({
+      liveSessionRef.current.sendRealtimeInput({
         audio: { data: base64, mimeType: "audio/pcm;rate=16000" },
       });
     };
@@ -200,7 +200,7 @@ function GeminiLiveAPIContent() {
         const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
         const base64 = dataUrl.split(",")[1];
 
-        liveSession.sendRealtimeInput({
+        liveSessionRef.current.sendRealtimeInput({
           video: { data: base64, mimeType: "image/jpeg" },
         });
       }, 1000);
