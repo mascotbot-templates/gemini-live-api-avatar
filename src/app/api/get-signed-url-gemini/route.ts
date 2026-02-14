@@ -36,9 +36,15 @@ export async function GET() {
       httpOptions: { apiVersion: "v1alpha" },
     });
 
+    // Token expiration:
+    // - newSessionExpireTime: how long the client has to START a session (default 60s — too short for caching)
+    // - expireTime: how long messages can be sent once connected (default 30min)
+    const newSessionExpireTime = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
     const googleToken = await ai.authTokens.create({
       config: {
         uses: 1, // Single-use token
+        newSessionExpireTime,
         liveConnectConstraints: {
           model: GEMINI_CONFIG.model,
           config: {
